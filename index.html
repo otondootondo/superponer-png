@@ -4,13 +4,23 @@
     <meta charset="UTF-8" />
     <title>Superponer PNG sobre foto</title>
     <style>
-        body { text-align: center; font-family: Arial; }
-        canvas { border: 1px solid #ccc; cursor: move; }
+        body { text-align: center; font-family: Arial; padding: 20px; }
+        canvas {
+            border: 1px solid #ccc;
+            cursor: move;
+            max-width: 90vw; /* responsive */
+            height: auto;
+        }
+        button, input {
+            margin: 10px;
+            padding: 10px 20px;
+        }
     </style>
 </head>
 <body>
 
     <h1>Superponer PNG sobre tu foto</h1>
+    <p>Subí tu foto cuadrada (se ajustará a 1080x1080 px). El logo se aplicará automáticamente encima.</p>
     <input type="file" id="bgInput" accept="image/*" />
     <br/><br/>
     <canvas id="canvas" width="1080" height="1080"></canvas>
@@ -22,7 +32,7 @@
         const ctx = canvas.getContext("2d");
 
         const overlayImage = new Image();
-        overlayImage.src = "logo2.png"; // Aquí va tu PNG con fondo transparente
+        overlayImage.src = "logo2.png";
         overlayImage.onload = draw;
 
         let bgImage = null;
@@ -64,8 +74,8 @@
         // Movimiento con mouse
         canvas.addEventListener("mousedown", function(e) {
             isDragging = true;
-            dragStartX = e.offsetX - bgX;
-            dragStartY = e.offsetY - bgY;
+            dragStartX = e.offsetX * (canvas.width / canvas.clientWidth) - bgX;
+            dragStartY = e.offsetY * (canvas.height / canvas.clientHeight) - bgY;
         });
 
         canvas.addEventListener("mouseup", () => { isDragging = false; });
@@ -73,25 +83,37 @@
 
         canvas.addEventListener("mousemove", function(e) {
             if (isDragging && bgImage) {
-                bgX = e.offsetX - dragStartX;
-                bgY = e.offsetY - dragStartY;
+                const offsetX = e.offsetX * (canvas.width / canvas.clientWidth);
+                const offsetY = e.offsetY * (canvas.height / canvas.clientHeight);
+
+                bgX = offsetX - dragStartX;
+                bgY = offsetY - dragStartY;
                 draw();
             }
         });
 
-        // Zoom con scroll
+        // Desactivar el zoom con el scroll de la página (mejor UX)
         canvas.addEventListener("wheel", function(e) {
             if (bgImage) {
                 e.preventDefault();
                 const scaleAmount = 0.1;
+                const oldScale = bgScale;
+
                 if (e.deltaY < 0) {
                     bgScale *= (1 + scaleAmount);
                 } else {
                     bgScale *= (1 - scaleAmount);
                 }
+
+                const offsetX = e.offsetX * (canvas.width / canvas.clientWidth);
+                const offsetY = e.offsetY * (canvas.height / canvas.clientHeight);
+
+                bgX = offsetX - ((offsetX - bgX) * (bgScale / oldScale));
+                bgY = offsetY - ((offsetY - bgY) * (bgScale / oldScale));
+
                 draw();
             }
-        });
+        }, { passive: false }); // <== esto es importante para que preventDefault funcione bien
 
         // Descargar imagen final
         document.getElementById("downloadBtn").addEventListener("click", function() {
