@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Superponer PNG sobre foto</title>
+    <style>
+        body { text-align: center; font-family: Arial; }
+        canvas { border: 1px solid #ccc; cursor: move; }
+    </style>
+</head>
+<body>
+
+    <h1>Superponer PNG sobre tu foto</h1>
+    <input type="file" id="bgInput" accept="image/*" />
+    <br/><br/>
+    <canvas id="canvas" width="1080" height="1080"></canvas>
+    <br/>
+    <button id="downloadBtn">Descargar imagen final</button>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const overlayImage = new Image();
+        overlayImage.src = "logo2.png"; // Aquí va tu PNG con fondo transparente
+        overlayImage.onload = draw;
+
+        let bgImage = null;
+        let bgX = 0, bgY = 0;
+        let bgScale = 1;
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+
+        document.getElementById("bgInput").addEventListener("change", function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                bgImage = new Image();
+                bgImage.onload = () => {
+                    bgX = (canvas.width - bgImage.width) / 2;
+                    bgY = (canvas.height - bgImage.height) / 2;
+                    bgScale = 1;
+                    draw();
+                };
+                bgImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (bgImage) {
+                const scaledWidth = bgImage.width * bgScale;
+                const scaledHeight = bgImage.height * bgScale;
+                ctx.drawImage(bgImage, bgX, bgY, scaledWidth, scaledHeight);
+            }
+
+            ctx.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
+        }
+
+        // Movimiento con mouse
+        canvas.addEventListener("mousedown", function(e) {
+            isDragging = true;
+            dragStartX = e.offsetX - bgX;
+            dragStartY = e.offsetY - bgY;
+        });
+
+        canvas.addEventListener("mouseup", () => { isDragging = false; });
+        canvas.addEventListener("mouseleave", () => { isDragging = false; });
+
+        canvas.addEventListener("mousemove", function(e) {
+            if (isDragging && bgImage) {
+                bgX = e.offsetX - dragStartX;
+                bgY = e.offsetY - dragStartY;
+                draw();
+            }
+        });
+
+        // Zoom con scroll
+        canvas.addEventListener("wheel", function(e) {
+            if (bgImage) {
+                e.preventDefault();
+                const scaleAmount = 0.1;
+                if (e.deltaY < 0) {
+                    bgScale *= (1 + scaleAmount);
+                } else {
+                    bgScale *= (1 - scaleAmount);
+                }
+                draw();
+            }
+        });
+
+        // Descargar imagen final
+        document.getElementById("downloadBtn").addEventListener("click", function() {
+            const link = document.createElement("a");
+            link.download = "resultado.png";
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    </script>
+
+</body>
+</html>
