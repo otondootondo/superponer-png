@@ -2,29 +2,39 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
-    <title>Unete a la ULatina en LInkedIn</title>
+    <title>Unete a la ULatina en LinkedIn</title>
     <style>
-        body { text-align: center; font-family: Arial; padding: 20px; }
+        body { 
+            text-align: center; 
+            font-family: Arial; 
+            padding: 20px; 
+            margin: 0;
+        }
         canvas {
             border: 1px solid #ccc;
             cursor: move;
-            max-width: 90vw; /* responsive */
+            max-height: 80vh; /* que quepa en el 80% de la altura de la ventana */
+            width: auto;
             height: auto;
         }
         button, input {
             margin: 10px;
             padding: 10px 20px;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Unete a la ULatina en LInkedIn</h1>
+    <h1>Unete a la ULatina en LinkedIn</h1>
     <p>Subí tu foto cuadrada (se ajustará a 1080x1080 px). El arte de la U se aplicará automáticamente encima.</p>
+    
     <input type="file" id="bgInput" accept="image/*" />
     <br/><br/>
+    
     <canvas id="canvas" width="1080" height="1080"></canvas>
     <br/>
+    
     <button id="downloadBtn">Descargar imagen final</button>
 
     <script>
@@ -92,7 +102,7 @@
             }
         });
 
-        // Desactivar el zoom con el scroll de la página (mejor UX)
+        // Zoom con scroll
         canvas.addEventListener("wheel", function(e) {
             if (bgImage) {
                 e.preventDefault();
@@ -113,7 +123,7 @@
 
                 draw();
             }
-        }, { passive: false }); // <== esto es importante para que preventDefault funcione bien
+        }, { passive: false });
 
         // Descargar imagen final
         document.getElementById("downloadBtn").addEventListener("click", function() {
