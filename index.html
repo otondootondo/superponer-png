@@ -159,9 +159,17 @@
                 e.preventDefault();
             } else if (isPinching && bgImage && e.touches.length === 2) {
                 const newDistance = getPinchDistance(e);
-                const scaleFactor = newDistance / initialPinchDistance;
+                let scaleFactor = newDistance / initialPinchDistance;
 
-                bgScale = initialScale * scaleFactor;
+                // Suavizado: limitar cuánto puede cambiar el scale por frame
+                const maxFactorChange = 0.05; // máx 5% por frame
+                scaleFactor = Math.max(1 - maxFactorChange, Math.min(1 + maxFactorChange, scaleFactor));
+
+                bgScale *= scaleFactor;
+
+                // Actualizar "initial" para el próximo frame
+                initialPinchDistance = newDistance;
+                initialScale = bgScale;
 
                 draw();
                 e.preventDefault();
