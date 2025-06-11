@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <title>Unete a la ULatina en LinkedIn</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
         body { 
             text-align: center; 
@@ -16,6 +17,7 @@
             max-height: 80vh; /* que quepa en el 80% de la altura de la ventana */
             width: auto;
             height: auto;
+            touch-action: none; /* importante para que no haga scroll en móvil */
         }
         button, input {
             margin: 10px;
@@ -51,6 +53,7 @@
         let isDragging = false;
         let dragStartX = 0, dragStartY = 0;
 
+        // Handle desktop file input
         document.getElementById("bgInput").addEventListener("change", function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -81,7 +84,7 @@
             ctx.drawImage(overlayImage, 0, 0, canvas.width, canvas.height);
         }
 
-        // Movimiento con mouse
+        // ---- DESKTOP EVENTS ----
         canvas.addEventListener("mousedown", function(e) {
             isDragging = true;
             dragStartX = e.offsetX * (canvas.width / canvas.clientWidth) - bgX;
@@ -102,7 +105,6 @@
             }
         });
 
-        // Zoom con scroll
         canvas.addEventListener("wheel", function(e) {
             if (bgImage) {
                 e.preventDefault();
@@ -123,6 +125,44 @@
 
                 draw();
             }
+        }, { passive: false });
+
+        // ---- TOUCH EVENTS (MOBILE) ----
+        canvas.addEventListener("touchstart", function(e) {
+            if (e.touches.length === 1) { // 1 finger drag
+                isDragging = true;
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+
+                const offsetX = (touch.clientX - rect.left) * (canvas.width / canvas.clientWidth);
+                const offsetY = (touch.clientY - rect.top) * (canvas.height / canvas.clientHeight);
+
+                dragStartX = offsetX - bgX;
+                dragStartY = offsetY - bgY;
+
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener("touchmove", function(e) {
+            if (isDragging && bgImage && e.touches.length === 1) {
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+
+                const offsetX = (touch.clientX - rect.left) * (canvas.width / canvas.clientWidth);
+                const offsetY = (touch.clientY - rect.top) * (canvas.height / canvas.clientHeight);
+
+                bgX = offsetX - dragStartX;
+                bgY = offsetY - dragStartY;
+
+                draw();
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener("touchend", function(e) {
+            isDragging = false;
+            e.preventDefault();
         }, { passive: false });
 
         // Descargar imagen final
