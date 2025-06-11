@@ -12,17 +12,24 @@
             margin: 0;
         }
         canvas {
+            width: 100vw;
+            height: 100vw; /* cuadrado adaptado a pantalla */
+            max-width: 600px;
+            max-height: 600px;
             border: 1px solid #ccc;
-            cursor: move;
-            max-height: 80vh; /* que quepa en el 80% de la altura de la ventana */
-            width: auto;
-            height: auto;
-            touch-action: none; /* importante para que no haga scroll en móvil */
+            touch-action: none; /* permite controlar el touch */
+            display: block;
+            margin: 0 auto;
         }
         button, input {
             margin: 10px;
             padding: 10px 20px;
             font-size: 16px;
+        }
+        footer {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #666;
         }
     </style>
 </head>
@@ -39,6 +46,10 @@
     
     <button id="downloadBtn">Descargar imagen final</button>
 
+    <footer>
+        Desarrollado por Francisco Otondo y Jonathan Carpio para ULatina.
+    </footer>
+
     <script>
         const canvas = document.getElementById("canvas");
         const ctx = canvas.getContext("2d");
@@ -53,7 +64,11 @@
         let isDragging = false;
         let dragStartX = 0, dragStartY = 0;
 
-        // Handle desktop file input
+        // Pinch-zoom variables
+        let isPinching = false;
+        let initialPinchDistance = 0;
+        let initialScale = 1;
+
         document.getElementById("bgInput").addEventListener("change", function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -87,8 +102,7 @@
         // ---- DESKTOP EVENTS ----
         canvas.addEventListener("mousedown", function(e) {
             isDragging = true;
-            dragStartX = e.offsetX * (canvas.width / canvas.clientWidth) - bgX;
-            dragStartY = e.offsetY * (canvas.height / canvas.clientHeight) - bgY;
+            updateDragStart(e.clientX, e.clientY);
         });
 
         canvas.addEventListener("mouseup", () => { isDragging = false; });
@@ -96,11 +110,7 @@
 
         canvas.addEventListener("mousemove", function(e) {
             if (isDragging && bgImage) {
-                const offsetX = e.offsetX * (canvas.width / canvas.clientWidth);
-                const offsetY = e.offsetY * (canvas.height / canvas.clientHeight);
-
-                bgX = offsetX - dragStartX;
-                bgY = offsetY - dragStartY;
+                updateDragMove(e.clientX, e.clientY);
                 draw();
             }
         });
@@ -117,11 +127,10 @@
                     bgScale *= (1 - scaleAmount);
                 }
 
-                const offsetX = e.offsetX * (canvas.width / canvas.clientWidth);
-                const offsetY = e.offsetY * (canvas.height / canvas.clientHeight);
+                const offset = getCanvasRelativePosition(e.clientX, e.clientY);
 
-                bgX = offsetX - ((offsetX - bgX) * (bgScale / oldScale));
-                bgY = offsetY - ((offsetY - bgY) * (bgScale / oldScale));
+                bgX = offset.x - ((offset.x - bgX) * (bgScale / oldScale));
+                bgY = offset.y - ((offset.y - bgY) * (bgScale / oldScale));
 
                 draw();
             }
@@ -129,31 +138,30 @@
 
         // ---- TOUCH EVENTS (MOBILE) ----
         canvas.addEventListener("touchstart", function(e) {
-            if (e.touches.length === 1) { // 1 finger drag
+            if (e.touches.length === 1) {
                 isDragging = true;
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
-
-                const offsetX = (touch.clientX - rect.left) * (canvas.width / canvas.clientWidth);
-                const offsetY = (touch.clientY - rect.top) * (canvas.height / canvas.clientHeight);
-
-                dragStartX = offsetX - bgX;
-                dragStartY = offsetY - bgY;
-
+                isPinching = false;
+                updateDragStart(e.touches[0].clientX, e.touches[0].clientY);
+                e.preventDefault();
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                isPinching = true;
+                initialPinchDistance = getPinchDistance(e);
+                initialScale = bgScale;
                 e.preventDefault();
             }
         }, { passive: false });
 
         canvas.addEventListener("touchmove", function(e) {
             if (isDragging && bgImage && e.touches.length === 1) {
-                const touch = e.touches[0];
-                const rect = canvas.getBoundingClientRect();
+                updateDragMove(e.touches[0].clientX, e.touches[0].clientY);
+                draw();
+                e.preventDefault();
+            } else if (isPinching && bgImage && e.touches.length === 2) {
+                const newDistance = getPinchDistance(e);
+                const scaleFactor = newDistance / initialPinchDistance;
 
-                const offsetX = (touch.clientX - rect.left) * (canvas.width / canvas.clientWidth);
-                const offsetY = (touch.clientY - rect.top) * (canvas.height / canvas.clientHeight);
-
-                bgX = offsetX - dragStartX;
-                bgY = offsetY - dragStartY;
+                bgScale = initialScale * scaleFactor;
 
                 draw();
                 e.preventDefault();
@@ -161,9 +169,42 @@
         }, { passive: false });
 
         canvas.addEventListener("touchend", function(e) {
-            isDragging = false;
+            if (e.touches.length === 0) {
+                isDragging = false;
+                isPinching = false;
+            }
             e.preventDefault();
         }, { passive: false });
+
+        // --- Helpers ---
+        function getCanvasRelativePosition(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (clientX - rect.left) * (canvas.width / rect.width);
+            const y = (clientY - rect.top) * (canvas.height / rect.height);
+            return { x, y };
+        }
+
+        function updateDragStart(clientX, clientY) {
+            const offset = getCanvasRelativePosition(clientX, clientY);
+            dragStartX = offset.x - bgX;
+            dragStartY = offset.y - bgY;
+        }
+
+        function updateDragMove(clientX, clientY) {
+            const offset = getCanvasRelativePosition(clientX, clientY);
+            bgX = offset.x - dragStartX;
+            bgY = offset.y - dragStartY;
+        }
+
+        function getPinchDistance(e) {
+            const pos1 = getCanvasRelativePosition(e.touches[0].clientX, e.touches[0].clientY);
+            const pos2 = getCanvasRelativePosition(e.touches[1].clientX, e.touches[1].clientY);
+
+            const dx = pos2.x - pos1.x;
+            const dy = pos2.y - pos1.y;
+
+            return Math.sqrt(dx * dx + dy * dy);
+        }
 
         // Descargar imagen final
         document.getElementById("downloadBtn").addEventListener("click", function() {
